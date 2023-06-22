@@ -78,3 +78,18 @@ describe('DatabaseManager', () => {
         expect(result.length).toBe(0)
     })
 })
+
+describe('Authentication', () => {
+    it('should return a payload when correctly logging in', async () => {
+        throw new Error('Unimplemented')
+    })
+    it('should throw on faulty token', async () => {
+        throw new Error('Unimplemented')
+    })
+    it('should allow access to protected routes if token is valid', async () => {
+        throw new Error('Unimplemented')
+    })
+    it('should barr access to protected routes if token is (somehow) invalid', async () => {
+        throw new Error('Unimplemented')
+    })
+})

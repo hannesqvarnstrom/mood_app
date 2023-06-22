@@ -3,6 +3,7 @@ import { NextFunction, Request, Response, Router } from "express"
 import userService from "../services/user"
 import { z } from "zod"
 import authService from "../services/authentication"
+import { JWTExpiresIn, requireJwt, signJwt } from "../middleware/jwt"
 
 export const validateRequest = <Z extends { parseAsync: (data: unknown, params?: Partial<z.ParseParams> | undefined) => any }>(schema: Z) => {
     return async (req: Request, res: Response, next: NextFunction) => {
@@ -64,36 +65,30 @@ const loginSchema = z.object({
         password: z.string().min(6)
         /**
          * @todo implement OAuth and new routes for auth
+         * @todo implement BankID first? goto https://www.bankid.com/utvecklare/test and https://www.bankid.com/utvecklare/guider
          */
     })
 })
 
 router.post('/login', validateRequest(loginSchema), async (req, res) => {
     try {
-        /*const user = */await authService.attemptPasswordLogin(req.body)
-        // console.log("🚀 ~ file: index.ts:73 ~ router.post ~ user:", user)
-
-        /**
-         * @todo
-         * 1. attach user to request body.
-         * 1.5 figure out how to type request body better. 
-         * 2. how to handle tokens and stuff like that. gotta sign tokens etc
-         * 3. return 200
-         * 4. smoothify Error-handling in routes
-         */
-        return res.status(500).send('UNIMPLEMENTED')
+        const user = await authService.attemptPasswordLogin(req.body)
+        const token = signJwt(user.id)
+        return res.status(200).send({
+            token,
+            expiresIn: new Date().setTime(new Date().getTime() + (JWTExpiresIn * 1000))
+        })
     } catch (e) {
         return res.status(400).send(e.message)
     }
 })
 
-router.get('/users', async (_req, res) => {
+router.get('/users', requireJwt, async (_req, res) => {
     return res.send(await userService.getUsersList())
 })
 
-router.get('/users/:id', async (req, res) => {
+router.get('/users/:id', requireJwt, async (req, res) => {
     return res.send(await userService.getById(parseInt(req.params.id)))
 })
-
 
 export default router

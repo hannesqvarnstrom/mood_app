@@ -1,6 +1,7 @@
 import express, { NextFunction, Request, Response } from 'express'
 import { Express } from 'express-serve-static-core'
 import routes from '../routes'
+import { JwtPayload } from '../middleware/jwt'
 export default function makeServer(): Promise<Express> {
     const server = express()
     server.use(express.json())
@@ -17,4 +18,13 @@ export default function makeServer(): Promise<Express> {
     })
     server.use(routes)
     return Promise.resolve(server)
+}
+
+declare global {
+    namespace Express {
+        interface Request {
+            jwtPayload?: JwtPayload
+        }
+    }
+
 }

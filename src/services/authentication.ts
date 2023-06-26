@@ -2,13 +2,16 @@ import dbManager, { DB } from "../db";
 import { compare, hash } from "bcrypt"
 import UserModel, { TUser } from "../models/user";
 import { AppError } from "../utils/errors";
+import IdentityModel, { TCreateIdentityPayload } from "../models/identity";
 
 export class AuthenticationService {
     db: DB
     userModel: UserModel
+    identityModel: IdentityModel
     constructor() {
         this.db = dbManager.db
         this.userModel = new UserModel()
+        this.identityModel = new IdentityModel()
     }
 
     public async attemptPasswordLogin({ email, password }: IPasswordLoginBody): Promise<TUser> {
@@ -20,8 +23,16 @@ export class AuthenticationService {
         const passwordCorrect = await compare(password, user.password)
         if (!passwordCorrect) throw genericLoginErrorMessage
 
-        return UserModel.payload(user)
+        return UserModel.factory(user)
 
+    }
+
+    public async findUserIdentity(providerID: string, provider: OAuthProvider) {
+        return this.identityModel.findByProviderId(providerID, provider)
+    }
+
+    public async createUserIdentity(identityPayload: TCreateIdentityPayload) {
+        return this.identityModel.create(identityPayload)
     }
 
     public static async hashPassword(password: string) {
@@ -41,3 +52,5 @@ interface IPasswordLoginBody {
     email: string,
     password: string
 }
+
+export type OAuthProvider = 'GOOGLE' | 'FACEBOOK'

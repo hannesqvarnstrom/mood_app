@@ -1,4 +1,5 @@
 import makeServer from './utils/server'
+import './passport-config'
 
 export const Application = async () => {
     const app = await makeServer()

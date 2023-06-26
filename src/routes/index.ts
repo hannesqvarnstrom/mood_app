@@ -18,6 +18,9 @@ router.get('/', (_req, res) => {
  * - POST /login, 
  * - GET /me,
  * - PUT /me
+ * 
+ * - GET /auth/google
+ * - GET /auth/google/redirect
  */
 router.use(usersRouter)
 

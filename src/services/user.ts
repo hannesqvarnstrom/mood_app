@@ -14,11 +14,13 @@ class UserService {
         return this.model.getById(id, true)
     }
 
+    public async getByEmail(email: string): Promise<TUser | undefined> {
+        return this.model.getByEmail(email)
+    }
+
     public async createUser(args: TUserCreateArgs): Promise<TUser> {
         if (args.password) {
             args.password = await AuthenticationService.hashPassword(args.password)
-        } else {
-            throw new AppError('Passwordless authentication not implemented', 400)
         }
 
         return this.model.create(args)

@@ -1,1 +1,0 @@
-CREATE INDEX IF NOT EXISTS "users_email_index" ON "users" ("email");

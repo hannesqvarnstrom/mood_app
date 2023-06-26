@@ -1,21 +1,19 @@
 import dbManager, { DB } from "../db";
 import { compare, hash } from "bcrypt"
 import UserModel, { TUser } from "../models/user";
-import { users } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { AppError } from "../utils/errors";
 
-
-class AuthenticationService {
+export class AuthenticationService {
     db: DB
+    userModel: UserModel
     constructor() {
         this.db = dbManager.db
+        this.userModel = new UserModel()
     }
 
     public async attemptPasswordLogin({ email, password }: IPasswordLoginBody): Promise<TUser> {
-        const q = this.db.select().from(users).where(eq(users.email, email)).prepare('q')
-        const [user, ..._] = await q.execute()
-
-        const genericLoginErrorMessage = new Error('Email or password doesn\'t match our records.')
+        const user = await this.userModel.getByEmail(email)
+        const genericLoginErrorMessage = new AppError('Email or password doesn\'t match our records.', 400)
 
         if (user === undefined) throw genericLoginErrorMessage
         if (!user.password) throw genericLoginErrorMessage
@@ -26,9 +24,13 @@ class AuthenticationService {
 
     }
 
-    public async hashPassword(password: string) {
+    public static async hashPassword(password: string) {
         const saltRounds = 10
         return hash(password, saltRounds)
+    }
+
+    public static async compare(unknownPassword: string, encryptedPassword: string): Promise<boolean> {
+        return compare(unknownPassword, encryptedPassword)
     }
 }
 

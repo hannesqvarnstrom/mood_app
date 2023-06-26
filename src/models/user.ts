@@ -1,6 +1,7 @@
 import dbManager from "../db"
 import { users } from "../db/schema"
 import { eq, InferModel } from 'drizzle-orm'
+import { AppError } from "../utils/errors"
 
 export type RawUser = InferModel<typeof users>
 export type TUserCreateArgs = InferModel<typeof users, 'insert'>
@@ -24,21 +25,49 @@ export default class UserModel {
     public async getById<B extends boolean = true>(id: number, require: B): Promise<TUser>
     public async getById(id: number): Promise<TUser | undefined>
     public async getById<B extends boolean = false>(id: number, require?: B) {
-        const q = dbManager.db.select().from(users).where(eq(users.id, id)).prepare('q')
+        const q = dbManager.db.select().from(users).where(eq(users.id, id)).prepare('getUserById')
         const [result, ..._] = await q.execute()
 
         if (result) {
             const user = UserModel.payload(result)
             return user
         } else {
-            if (require) throw new Error('404')
+            if (require) throw new AppError('', 404)
             return undefined
         }
     }
 
+    public async getRawById(id: number): Promise<RawUser> {
+        const q = dbManager.db.select().from(users).where(eq(users.id, id)).prepare('getRawById')
+        const [result, ..._] = await q.execute()
+
+        if (result) {
+            return result
+        } else {
+            throw new AppError('', 404)
+        }
+    }
+
+    public async updateById(id: number, payload: { password?: string } = {}) {
+        const q = dbManager.db.update(users).set(payload).where(eq(users.id, id)).returning().prepare('updateById')
+        const [updatedUser, ..._] = await q.execute()
+        if (updatedUser) {
+            return UserModel.payload(updatedUser)
+        } else {
+            throw new Error('User failed to be updated for some reason')
+        }
+    }
+
+    public async getByEmail(email: string): Promise<RawUser | undefined> {
+        const q = dbManager.db.select().from(users).where(eq(users.email, email)).prepare('getByEmail')
+        const [user, ..._] = await q.execute()
+
+        return user
+    }
+
     public async create({ email, password }: TUserCreateArgs): Promise<TUser> {
         /** @todo enable password-less authentication (OAuth2?) */
-        const q = dbManager.db.insert(users).values({ email, password }).returning().prepare('q')
+        const q = dbManager.db.insert(users).values({ email, password }).returning().prepare('createUser')
         const [newUser, ..._] = await q.execute()
         if (newUser) {
             return UserModel.payload(newUser)
@@ -48,7 +77,7 @@ export default class UserModel {
     }
 
     public async list({ limit }: ListArguments): Promise<TUser[]> {
-        const q = dbManager.db.select().from(users).limit(limit).prepare('q')
+        const q = dbManager.db.select().from(users).limit(limit).prepare('listUsers')
         const list = (await q.execute()).map(UserModel.payload)
         return list
     }

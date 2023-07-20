@@ -1,0 +1,1 @@
+ALTER TABLE "federated_identities" ALTER COLUMN "provider" SET NOT NULL;

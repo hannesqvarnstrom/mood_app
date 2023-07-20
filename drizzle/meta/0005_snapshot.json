@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "pg",
-  "id": "8edc6bf6-f051-4b8b-9fc7-6d4461f798ca",
-  "prevId": "19f29564-ea25-4493-b5b0-7aa7e62968f5",
+  "id": "fe9f48d9-08a0-4ed9-b4e9-e3ba30f4e93c",
+  "prevId": "92681b97-2d8f-4c0d-8b4d-5c4876a1049d",
   "tables": {
     "federated_identities": {
       "name": "federated_identities",
@@ -12,7 +12,7 @@
           "name": "provider",
           "type": "provider",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "providerId": {
           "name": "providerId",
@@ -72,13 +72,13 @@
           "name": "timestamp",
           "type": "timestamp",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         }
       },
       "indexes": {

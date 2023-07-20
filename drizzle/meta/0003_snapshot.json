@@ -1,9 +1,57 @@
 {
   "version": "5",
   "dialect": "pg",
-  "id": "a8b301e5-6acb-4016-8381-d49d02f4f724",
-  "prevId": "d408cd16-92af-4326-9a7d-e1c20784d0e8",
+  "id": "de80ef33-fb8d-4d4c-9436-5b34c3a43758",
+  "prevId": "b852f0bc-9bd2-4115-a357-97dc32540eb4",
   "tables": {
+    "federated_identities": {
+      "name": "federated_identities",
+      "schema": "",
+      "columns": {
+        "provider": {
+          "name": "provider",
+          "type": "provider",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "providerId": {
+          "name": "providerId",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "federated_identities_user_id_users_id_fk": {
+          "name": "federated_identities_user_id_users_id_fk",
+          "tableFrom": "federated_identities",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {}
+    },
     "mood_ratings": {
       "name": "mood_ratings",
       "schema": "",
@@ -30,7 +78,7 @@
           "name": "user_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         }
       },
       "indexes": {
@@ -80,6 +128,12 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
+        },
+        "last_log_at": {
+          "name": "last_log_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -95,7 +149,15 @@
       "compositePrimaryKeys": {}
     }
   },
-  "enums": {},
+  "enums": {
+    "provider": {
+      "name": "provider",
+      "values": {
+        "GOOGLE": "GOOGLE",
+        "FACEBOOK": "FACEBOOK"
+      }
+    }
+  },
   "schemas": {},
   "_meta": {
     "schemas": {},

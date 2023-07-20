@@ -155,6 +155,7 @@ describe('Authentication', () => {
                 .expect(200)
             expect(protectedData.body.me.email).toBe('hejhej@something.se')
             expect(protectedData.body.me.id).toBe(1)
+            expect(protectedData.body.me.lastLogAt).toBe(null)
         })
 
         it('PUT', async () => {

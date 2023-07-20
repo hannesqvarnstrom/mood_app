@@ -11,9 +11,9 @@ export default class UserModel {
     constructor() {
     }
 
-    public static payload(params: RawUser): TUser {
-        const { email, id } = params
-        return { email, id }
+    public static factory(params: RawUser): TUser {
+        const { email, id, lastLogAt } = params
+        return { email, id, lastLogAt }
     }
 
     /**
@@ -29,7 +29,7 @@ export default class UserModel {
         const [result, ..._] = await q.execute()
 
         if (result) {
-            const user = UserModel.payload(result)
+            const user = UserModel.factory(result)
             return user
         } else {
             if (require) throw new AppError('', 404)
@@ -48,13 +48,14 @@ export default class UserModel {
         }
     }
 
-    public async updateById(id: number, payload: { password?: string } = {}) {
+    public async updateById(id: number, payload: { password?: string, lastLogAt?: Date } = {}) {
         const q = dbManager.db.update(users).set(payload).where(eq(users.id, id)).returning().prepare('updateById')
+
         const [updatedUser, ..._] = await q.execute()
         if (updatedUser) {
-            return UserModel.payload(updatedUser)
+            return UserModel.factory(updatedUser)
         } else {
-            throw new Error('User failed to be updated for some reason')
+            throw new Error('User failed to be added for some reason')
         }
     }
 
@@ -66,11 +67,19 @@ export default class UserModel {
     }
 
     public async create({ email, password }: TUserCreateArgs): Promise<TUser> {
-        /** @todo enable password-less authentication (OAuth2?) */
+        /**
+         * @todo
+         * - add unique constraint to email
+         */
+        const existingUserQ = dbManager.db.select().from(users).where(eq(users.email, email)).prepare('existingUserQ')
+        const [alreadyExists, ..._1] = await existingUserQ.execute()
+        if (alreadyExists) {
+            throw new AppError('An Account with this email already exists', 400)
+        }
         const q = dbManager.db.insert(users).values({ email, password }).returning().prepare('createUser')
-        const [newUser, ..._] = await q.execute()
+        const [newUser, ..._2] = await q.execute()
         if (newUser) {
-            return UserModel.payload(newUser)
+            return UserModel.factory(newUser)
         } else {
             throw new Error('User failed to be added for some reason')
         }
@@ -78,7 +87,7 @@ export default class UserModel {
 
     public async list({ limit }: ListArguments): Promise<TUser[]> {
         const q = dbManager.db.select().from(users).limit(limit).prepare('listUsers')
-        const list = (await q.execute()).map(UserModel.payload)
+        const list = (await q.execute()).map(UserModel.factory)
         return list
     }
 }

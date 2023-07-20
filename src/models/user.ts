@@ -12,8 +12,8 @@ export default class UserModel {
     }
 
     public static factory(params: RawUser): TUser {
-        const { email, id } = params
-        return { email, id }
+        const { email, id, lastLogAt } = params
+        return { email, id, lastLogAt }
     }
 
     /**
@@ -48,8 +48,9 @@ export default class UserModel {
         }
     }
 
-    public async updateById(id: number, payload: { password?: string } = {}) {
+    public async updateById(id: number, payload: { password?: string, lastLogAt?: Date } = {}) {
         const q = dbManager.db.update(users).set(payload).where(eq(users.id, id)).returning().prepare('updateById')
+
         const [updatedUser, ..._] = await q.execute()
         if (updatedUser) {
             return UserModel.factory(updatedUser)
@@ -66,8 +67,17 @@ export default class UserModel {
     }
 
     public async create({ email, password }: TUserCreateArgs): Promise<TUser> {
+        /**
+         * @todo
+         * - add unique constraint to email
+         */
+        const existingUserQ = dbManager.db.select().from(users).where(eq(users.email, email)).prepare('existingUserQ')
+        const [alreadyExists, ..._1] = await existingUserQ.execute()
+        if (alreadyExists) {
+            throw new AppError('An Account with this email already exists', 400)
+        }
         const q = dbManager.db.insert(users).values({ email, password }).returning().prepare('createUser')
-        const [newUser, ..._] = await q.execute()
+        const [newUser, ..._2] = await q.execute()
         if (newUser) {
             return UserModel.factory(newUser)
         } else {

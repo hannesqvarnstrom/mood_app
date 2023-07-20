@@ -3,6 +3,7 @@ import { Express } from 'express-serve-static-core'
 import routes from '../routes'
 import { JwtPayload } from '../middleware/jwt'
 import { errorHandler } from '../middleware/errorhandling'
+import { TUser } from '../models/user'
 
 export default function makeServer(): Promise<Express> {
     const server = express()
@@ -15,7 +16,8 @@ export default function makeServer(): Promise<Express> {
 declare global {
     namespace Express {
         interface Request {
-            jwtPayload?: JwtPayload
+            jwtPayload?: JwtPayload,
+            user?: TUser
         }
     }
 

@@ -1,0 +1,1 @@
+ALTER TABLE "mood_ratings" ALTER COLUMN "user_id" SET NOT NULL;

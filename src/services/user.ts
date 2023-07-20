@@ -1,4 +1,4 @@
-import UserModel, { TUser, TUserCreateArgs } from "../models/user";
+import UserModel, { RawUser, TUser, TUserCreateArgs } from "../models/user";
 import { SchemaInterface, updateMeSchema } from "../routes/schemas";
 import { AppError } from "../utils/errors";
 import { AuthenticationService } from "./authentication";
@@ -10,8 +10,10 @@ class UserService {
         this.model = new UserModel()
     }
 
-    public async getById(id: number): Promise<TUser> {
-        return this.model.getById(id, true)
+    public async getById(id: number): Promise<TUser & { logOverdue: boolean }> {
+        const user = await this.model.getById(id, true)
+        const logOverdue = await this.shouldUserLog(user.id, new Date())
+        return { ...user, logOverdue }
     }
 
     public async getByEmail(email: string): Promise<TUser | undefined> {
@@ -28,6 +30,15 @@ class UserService {
 
     public async getUsersList() {
         return this.model.list({ limit: 50 })
+    }
+
+    public async shouldUserLog(id: number, now: Date): Promise<boolean> {
+        const user = await this.model.getRawById(id)
+        return this.logOverdue(user, now)
+    }
+
+    public logOverdue(user: TUser | RawUser, now: Date): boolean {
+        return user.lastLogAt === null || now.toDateString() !== new Date(user.lastLogAt).toDateString()
     }
 
     /**

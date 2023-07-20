@@ -27,12 +27,11 @@ export const signJwt = (userId: number, options: SignOptions = {
 
 export const verifyJwt = <T>(token: string): T | null => {
     try {
-        const cleanedToken = token.substring(7, token.length)
         const publicKey = Buffer.from(
             envVars.get('ACCESS_TOKEN_PUBLIC_KEY'),
             'base64'
         ).toString('ascii')
-        return jwt.verify(cleanedToken, publicKey) as T
+        return jwt.verify(token, publicKey) as T
     } catch (error) {
         return null
     }
@@ -42,7 +41,7 @@ export const requireJwt = async <Params>(req: Request<Params>, _res: Response, n
     try {
         const authString = req.headers.authorization
         if (!authString) throw new AppError('No authorization header supplied', 401)
-        const token = authString.substring(authString.indexOf('Bearer '), authString.length)
+        const token = authString.substring(authString.indexOf('Bearer '), authString.length).trim()
         if (!token) throw new AppError('No webtoken supplied', 401)
 
         const jwtPayload = verifyJwt<JwtPayload>(token)

@@ -1,0 +1,1 @@
+ALTER TABLE "mood_ratings" ALTER COLUMN "value" DROP NOT NULL;

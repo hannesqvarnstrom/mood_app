@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_RATING_VALUE } from "../../models/mood-rating";
 
 
 export type SchemaInterface<Schema extends Zod.ZodEffects<Zod.ZodObject<any, any, any, any, any>> | Zod.ZodObject<any, any, any, any, any>> = z.infer<Schema>
@@ -68,4 +69,8 @@ export const updateMeSchema = z.object({
     for (const issue of issues) {
         ctx.addIssue(issue)
     }
+})
+
+export const postRatingSchema = z.object({
+    value: z.number().min(0).max(MAX_RATING_VALUE),
 })

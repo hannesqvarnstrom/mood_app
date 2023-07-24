@@ -41,7 +41,7 @@ export const requireJwt = async <Params>(req: Request<Params>, _res: Response, n
     try {
         const authString = req.headers.authorization
         if (!authString) throw new AppError('No authorization header supplied', 401)
-        const token = authString.substring(authString.indexOf('Bearer '), authString.length).trim()
+        const token = authString.substring(authString.indexOf('Bearer ') + 6, authString.length).trim()
         if (!token) throw new AppError('No webtoken supplied', 401)
 
         const jwtPayload = verifyJwt<JwtPayload>(token)

@@ -1,11 +1,12 @@
 import { Response, Router } from 'express'
 import authService, { OAuthProvider } from "../services/authentication"
 import { JWTExpiresIn, requireJwt, signJwt } from "../middleware/jwt"
-import { loginSchema, registerSchema, updateMeSchema } from "./schemas"
+import { loginSchema, oauthGooglePostSchema, registerSchema, updateMeSchema } from "./schemas"
 import userService from "../services/user"
 import { validateRequest } from '../utils/schema'
 import { TUser } from '../models/user'
 import { AppError } from '../utils/errors'
+import oauthService from '../services/oauth'
 
 const usersRouter = Router()
 
@@ -69,67 +70,47 @@ usersRouter.put('/me', requireJwt, validateRequest(updateMeSchema), async (req, 
 /**
  * Google
  */
-usersRouter.post('/auth/google', async (req, res) => {
+usersRouter.post('/auth/google', validateRequest(oauthGooglePostSchema), async (req, res, next) => {
     const {
-        id,
-        email,
+        providerToken,
     } = req.body
 
-    if (!id) {
-        throw new AppError('missing id', 400)
-    }
+    try {
+        const { email, id } = await oauthService.verifyGoogleToken(providerToken)
 
-    const userIdentity = await authService.findUserIdentity(id, 'GOOGLE')
-    if (userIdentity) {
-        const user = await userService.getById(userIdentity.userId)
-        return signAndSendUserToken(user, res)
-    } else {
-        if (email) {
-            let user = await userService.getByEmail(email)
-
-            if (!user) {
-                user = await userService.createUser({ email })
-            }
-
-            const identityPayload = {
-                provider: 'GOOGLE' as OAuthProvider,
-                providerId: id,
-                userId: user.id
-            }
-
-            await authService.createUserIdentity(identityPayload)
+        const userIdentity = await authService.findUserIdentity(id, 'GOOGLE')
+        if (userIdentity) {
+            const user = await userService.getById(userIdentity.userId)
             return signAndSendUserToken(user, res)
         } else {
-            throw new AppError('Missing an Email-address for Oauth Login', 400)
+            if (email) {
+                let user = await userService.getByEmail(email)
+
+                if (!user) {
+                    user = await userService.createUser({ email })
+                } else {
+                    // @todo - if user already exists in the app, 
+                    // force them to input their existing password to link the accounts
+                    return res.status(200).send({
+                        action: 'prompt_normal_login',
+                    })
+                }
+
+                const identityPayload = {
+                    provider: 'GOOGLE' as OAuthProvider,
+                    providerId: id,
+                    userId: user.id
+                }
+
+                await authService.createUserIdentity(identityPayload)
+                return signAndSendUserToken(user, res)
+            } else {
+                throw new AppError('Missing an Email-address for Oauth Login', 400)
+            }
         }
+    } catch (e) {
+        return next(e)
     }
 })
-
-/**
- * Serverside (idk)
- */
-/**
- * (passport)
- * Google
- */
-// usersRouter.get('/auth/google', passport.authenticate('google', {
-//     scope: ['email', 'profile'],
-//     session: false
-// }))
-
-// usersRouter.get('/auth/google/redirect', passport.authenticate('google', { session: false }), (req, res, next) => {
-//     const user = req.user as TUser
-//     if (!user) {
-//         return next(new AppError('Passport failed to serialize a user', 500))
-//     }
-
-//     const token = signJwt(user.id)
-//     return res.status(200).send({
-//         token,
-//         expiresAt: new Date().setTime(new Date().getTime() + (JWTExpiresIn * 1000)),
-//         expiresIn: JWTExpiresIn
-//     })
-// })
-
 
 export default usersRouter

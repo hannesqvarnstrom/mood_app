@@ -43,7 +43,7 @@ class MoodRatingService {
         const ratings = await this.getByUserBetween(user, timeArgs)
         const dateRange = Math.abs(timeArgs.to.getTime() - timeArgs.from.getTime()) / (1000 * 60 * 60 * 24)
 
-        const avgRatings = fillEmptyDays(averageRatingPerDay(ratings), dateRange)
+        const avgRatings = MoodRatingStatistics.fillEmptyDays(MoodRatingStatistics.averageRatingPerDay(ratings), dateRange)
         avgRatings.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         return avgRatings
     }
@@ -57,97 +57,102 @@ class MoodRatingService {
     public async getByUserBetween(user: TUser, timeArgs: { from: Date, to: Date }): Promise<TMoodRating[]> {
         const ratings = await this.model.getByUserIdBetween(user.id, timeArgs)
         const dateRange = Math.abs(timeArgs.to.getTime() - timeArgs.from.getTime()) / (1000 * 60 * 60 * 24)
-        const filledRatings = fillEmptyDays(ratings, dateRange, user.id)
+        const filledRatings = MoodRatingStatistics.fillEmptyDays(ratings, dateRange, user.id)
         filledRatings.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
         return filledRatings
     }
 }
 
 /**
- * 
- * @param ratings The ratings to average
- * @returns The average ratings per day
+ * A class for calculating statistics from MoodRatings
  */
-function averageRatingPerDay(ratings: TMoodRating[]): AverageMoodRatingForDay[] {
-    const ratingsByDay: { [key: string]: number[] } = {}
-    ratings.forEach(r => {
-        const date = r.timestamp.toDateString()
-        if (!ratingsByDay[date]) {
-            ratingsByDay[date] = []
-        }
-        (ratingsByDay[date] as (number | null)[]).push(r.value)
-    })
-
-    const result = Object.entries(ratingsByDay).map(([date, ratings]) => {
-        const avg = ratings.reduce((acc, curr) => acc + curr, 0) / ratings.length
-        return { date, rating: avg }
-    })
-
-    return result
-}
-
-/**
- * 
- * @param rating The rating to check
- * @returns Whether the rating is an average rating
- */
-function ratingIsAverage(rating: (AverageMoodRatingForDay | TMoodRating | undefined)): rating is AverageMoodRatingForDay {
-    return (rating as AverageMoodRatingForDay).rating !== undefined
-}
-
-/**
- * When querying statistics from the DB, there may be days with no ratings. This function fills those days with "empty" ratings.
- * 
- * @param ratings Known, existing ratings, to fill empty days in. 
- * @param dateRange The total number of days to fill.
- * @param userId The user ID to fill ratings for.
- */
-function fillEmptyDays(ratings: TMoodRating[], dateRange: number, userId: number): TMoodRating[]
-
-/**
- * When querying statistics from the DB, there may be days with no ratings. This function fills those days with "empty" ratings.
- * 
- * @param ratings  Known, existing ratings, to fill empty days in.
- * @param dateRange  The total number of days to fill.
- */
-function fillEmptyDays(ratings: AverageMoodRatingForDay[], dateRange: number,): AverageMoodRatingForDay[]
-
-/**
- * When querying statistics from the DB, there may be days with no ratings. This function fills those days with "empty" ratings.
- * 
- * @param ratings Known, existing ratings, to fill empty days in. (The type of ratings[] being either TMoodRating or AverageMoodRatingForDay)
- * @param dateRange  The total number of days to fill.
- * @param userId  The user ID to fill ratings for. (Only needed if ratings is TMoodRating[])
- * @returns 
- */
-function fillEmptyDays(ratings: (AverageMoodRatingForDay | TMoodRating)[], dateRange: number, userId?: number): (AverageMoodRatingForDay | TMoodRating)[] {
-    for (let i = 0; i < dateRange; i++) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const rating = ratings.find(r => {
-            const key = ratingIsAverage(r) ? r.date : r.timestamp.toDateString()
-            key === date.toDateString()
+export class MoodRatingStatistics {
+    /**
+     * 
+     * @param ratings The ratings to average
+     * @returns The average ratings per day
+     */
+    static averageRatingPerDay(ratings: TMoodRating[]): AverageMoodRatingForDay[] {
+        const ratingsByDay: { [key: string]: number[] } = {}
+        ratings.forEach(r => {
+            const date = r.timestamp.toDateString()
+            if (!ratingsByDay[date]) {
+                ratingsByDay[date] = []
+            }
+            (ratingsByDay[date] as (number | null)[]).push(r.value)
         })
 
-        if (!rating) {
+        const result = Object.entries(ratingsByDay).map(([date, ratings]) => {
+            const avg = ratings.reduce((acc, curr) => acc + curr, 0) / ratings.length
+            return { date, rating: avg }
+        })
 
-            const isAverage = ratingIsAverage(ratings[0])
-
-            ratings.push(
-                isAverage ?
-                    {
-                        date: date.toDateString(),
-                        rating: null,
-                    } : {
-                        id: -1,
-                        timestamp: date,
-                        userId: userId ?? -1,
-                        value: null
-                    })
-        }
+        return result
     }
 
-    return ratings
+    /**
+     * 
+     * @param rating The rating to check
+     * @returns Whether the rating is an average rating
+     */
+    static ratingIsAverage(rating: (AverageMoodRatingForDay | TMoodRating | undefined)): rating is AverageMoodRatingForDay {
+        return (rating as AverageMoodRatingForDay).rating !== undefined
+    }
+
+    /**
+     * When querying statistics from the DB, there may be days with no ratings. This function fills those days with "empty" ratings.
+     * 
+     * @param ratings Known, existing ratings, to fill empty days in. 
+     * @param dateRange The total number of days to fill.
+     * @param userId The user ID to fill ratings for.
+     */
+    static fillEmptyDays(ratings: TMoodRating[], dateRange: number, userId: number): TMoodRating[]
+
+    /**
+     * When querying statistics from the DB, there may be days with no ratings. This function fills those days with "empty" ratings.
+     * 
+     * @param ratings  Known, existing ratings, to fill empty days in.
+     * @param dateRange  The total number of days to fill.
+     */
+    static fillEmptyDays(ratings: AverageMoodRatingForDay[], dateRange: number,): AverageMoodRatingForDay[]
+
+    /**
+     * When querying statistics from the DB, there may be days with no ratings. This function fills those days with "empty" ratings.
+     * 
+     * @param ratings Known, existing ratings, to fill empty days in. (The type of ratings[] being either TMoodRating or AverageMoodRatingForDay)
+     * @param dateRange  The total number of days to fill.
+     * @param userId  The user ID to fill ratings for. (Only needed if ratings is TMoodRating[])
+     * @returns 
+     */
+    static fillEmptyDays(ratings: (AverageMoodRatingForDay | TMoodRating)[], dateRange: number, userId?: number): (AverageMoodRatingForDay | TMoodRating)[] {
+        for (let i = 0; i < dateRange; i++) {
+            const date = new Date()
+            date.setDate(date.getDate() - i)
+            const rating = ratings.find(r => {
+                const key = this.ratingIsAverage(r) ? r.date : r.timestamp.toDateString()
+                key === date.toDateString()
+            })
+
+            if (!rating) {
+
+                const isAverage = this.ratingIsAverage(ratings[0])
+
+                ratings.push(
+                    isAverage ?
+                        {
+                            date: date.toDateString(),
+                            rating: null,
+                        } : {
+                            id: -1,
+                            timestamp: date,
+                            userId: userId ?? -1,
+                            value: null
+                        })
+            }
+        }
+
+        return ratings
+    }
 }
 
 const moodRatingService = new MoodRatingService()

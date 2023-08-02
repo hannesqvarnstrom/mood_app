@@ -25,6 +25,9 @@ const getRatingsQuerySchema = z.object({
     to: z.string(),
 })
 
+/**
+ * @todo limit access?
+ */
 moodRatingRouter.get('/ratings', async (req, res) => {
     const { from, to } = await getRatingsQuerySchema.parseAsync(req.query)
 

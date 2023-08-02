@@ -4,10 +4,13 @@ import makeServer from '../../utils/server'
 let server: Express
 import envVars from '../../utils/environment'
 import dbManager from '../../db'
-import { users } from '../../db/schema'
+import { federatedIdentities, users } from '../../db/schema'
 import { SchemaInterface, loginSchema, registerSchema, updateMeSchema } from '../schemas'
+import { and, eq } from 'drizzle-orm'
+import oauthService from '../../services/oauth'
+import sinon from 'ts-sinon'
 
-async function setupTestEnvironment(): Promise<Express> {
+export async function setupTestEnvironment(): Promise<Express> {
     const server = await makeServer()
     const testEnvVars = {
         'DB_CONNECTION': envVars.get('DB_TEST_CONNECTION'),
@@ -23,6 +26,7 @@ afterAll(async () => {
     await dbManager.truncateTables()
     await dbManager.pool.end()
     envVars.restore()
+    sinon.restore()
 })
 
 
@@ -145,7 +149,181 @@ describe('Authentication', () => {
             .expect(401)
     })
 
+    describe('Oauth', () => {
+
+        describe('Client initiated', () => {
+            let oauthVerifyTokenStub: sinon.SinonStub
+            const email = 'newuser@example.com'
+            const providerToken = 'abc.abc.abc'
+            const gId = '123'
+
+            beforeAll(async () => {
+                sinon.restore()
+                oauthVerifyTokenStub = sinon.stub(oauthService, 'verifyGoogleToken').resolves({ email: email, id: gId })
+            })
+            afterAll(async () => {
+                oauthVerifyTokenStub.restore()
+            })
+
+            beforeEach(async () => {
+                await dbManager.truncateTables()
+            })
+
+            it('validates post body', async () => {
+                const badPayloads = [
+                    {},
+                    { providerToken: '' },
+                    { badKey: 'asd' },
+                    { providerToken: 'abc' },
+                    { providerToken: 'abc.abc' },
+                ]
+
+                for (const badPayload of badPayloads) {
+                    await request(server)
+                        .post('/auth/google')
+                        .send(badPayload)
+                        .expect(400)
+                }
+            })
+
+            it('creates a new user + identity if completely new user', async () => {
+                const existingUser = await dbManager.db.select().from(users).where(eq(users.email, email))
+                expect(existingUser.length).toBe(0)
+
+                await request(server)
+                    .post('/auth/google')
+                    .send({ providerToken })
+                    .expect(200)
+
+                const newUser = await dbManager.db.select().from(users).where(eq(users.email, email))
+                expect(newUser.length).toBe(1)
+
+                const newIdentity = await dbManager.db.select().from(federatedIdentities)
+                    .where(
+                        and(
+                            eq(federatedIdentities.providerId, '123'),
+                            eq(federatedIdentities.provider, 'GOOGLE'),
+                            eq(federatedIdentities.userId, newUser[0]!.id)
+                        )
+                    )
+
+                expect(newIdentity.length).toBe(1)
+            })
+
+            it('prompts normal login if user already exists', async () => {
+                await register(server, {
+                    payload: {
+                        email,
+                        password: '123456',
+                        passwordConfirmation: '123456'
+                    }
+                })
+
+                const userExists = await dbManager.db.select().from(users).where(eq(users.email, email))
+                expect(userExists.length).toBe(1)
+
+                const response = await request(server)
+                    .post('/auth/google')
+                    .send({ providerToken })
+                    .expect(200)
+                expect(response.body.action).toBe('prompt_normal_login')
+
+                const wasIdentityCreated = await dbManager.db.select().from(federatedIdentities).where(and(eq(federatedIdentities.providerId, gId), eq(federatedIdentities.provider, 'GOOGLE'), eq(federatedIdentities.userId, userExists[0]!.id)))
+                expect(wasIdentityCreated.length).toBe(0)
+            })
+
+            it('returns token if user + identity exists', async () => {
+                const creationResponse = await request(server)
+                    .post('/auth/google')
+                    .send({ providerToken })
+                    .expect(200)
+
+                expect(creationResponse.body.token).toBeTruthy()
+
+                const user = await dbManager.db.select().from(users).where(eq(users.email, email))
+                expect(user.length).toBe(1)
+
+                const identity = await dbManager.db.select().from(federatedIdentities).where(
+                    and(
+                        eq(federatedIdentities.providerId, gId),
+                        eq(federatedIdentities.provider, 'GOOGLE'),
+                        eq(federatedIdentities.userId, user[0]!.id),
+                    ),
+                )
+                expect(identity.length).toBe(1)
+
+                const loginResponse = await request(server)
+                    .post('/auth/google')
+                    .send({ providerToken })
+                    .expect(200)
+
+                expect(loginResponse.body.token).toBeTruthy()
+            })
+        })
+    })
+
+    describe('/ratings', () => {
+        /**
+         * WIP
+         */
+        // let user: unknown
+        beforeAll(async () => {
+            await dbManager.truncateTables()
+            // user = 
+            await register(server).then(res => res.body)
+            // const loginResult = 
+            await login(server)
+            // console.log('loginResult:', loginResult)
+            // console.log('user:', user)
+        })
+
+        afterAll(async () => {
+            await dbManager.truncateTables()
+        })
+
+        describe('GET', () => {
+            it('is protected by jwt', async () => {
+            })
+
+            it('gets latest ratings for the auth-ed user ONLY', async () => {
+            })
+        })
+
+        describe('/average', () => {
+            it('is protected by jwt', async () => { })
+            it('gets ratings for the auth-ed user ONLY', async () => { })
+            it('gets average rating per day', () => { })
+            it('groups ratings by day', () => { })
+            it('fills empty days with null', () => { })
+        })
+
+        describe('POST', () => {
+            it('is protected by jwt', async () => { })
+            it('creates a new rating for the auth-ed user', async () => { })
+            it('returns the new rating', async () => { })
+            it('validates the request body', async () => { })
+            it('sets the users lastLogAt to the current time', async () => { })
+        })
+
+    })
+
     describe('/me', () => {
+        let user: { email: string, password: string }
+
+        beforeAll(async () => {
+            user = {
+                email: 'hejhej@something.se',
+                password: '123456'
+            }
+
+            await register(server, {
+                payload: {
+                    email: user.email,
+                    password: user.password,
+                    passwordConfirmation: user.password
+                }
+            })
+        })
         it('GET', async () => {
             const loginResult = await login(server)
             const protectedData = await request(server)
@@ -154,7 +332,7 @@ describe('Authentication', () => {
                 .set('Authorization', 'Bearer ' + loginResult.body.token)
                 .expect(200)
             expect(protectedData.body.me.email).toBe('hejhej@something.se')
-            expect(protectedData.body.me.id).toBe(1)
+            expect(protectedData.body.me.id).toBeTruthy()
             expect(protectedData.body.me.lastLogAt).toBe(null)
         })
 
@@ -227,11 +405,3 @@ describe('Authentication', () => {
         })
     })
 })
-
-// describe('BankID endpoints', () => {
-//     throw new Error('UNIMPLEMENTED')
-// })
-
-// describe('OAuth endpoints', () => {
-//     throw new Error('UNIMPLEMENTED')
-// })

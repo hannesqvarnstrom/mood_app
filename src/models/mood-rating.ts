@@ -1,6 +1,6 @@
 import dbManager from "../db"
 import { moodRatings } from "../db/schema"
-import { and, between, eq, InferModel } from 'drizzle-orm'
+import { and, between, eq, InferModel, sql } from 'drizzle-orm'
 import { AppError } from "../utils/errors"
 
 export type RawMoodRating = InferModel<typeof moodRatings>
@@ -40,6 +40,7 @@ export default class MoodRatingModel {
         console.log('userId:', userId)
         const query = dbManager.db.select().from(moodRatings)
             .where(and(eq(moodRatings.userId, userId), between(moodRatings.timestamp, args.from, args.to)))
+            .orderBy(sql`moodRatings.timestamp asc`)
             .prepare('getByUserBetween')
         const result = await query.execute()
         return result

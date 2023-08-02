@@ -42,6 +42,22 @@ export const registerSchema = z.object({
 })
 
 /**
+ * @route /auth/google
+ * @method POST
+ */
+export const oauthGooglePostSchema = z.object({
+    providerToken: z.string()
+}).superRefine(({ providerToken }, ctx) => {
+    const isValidJwt = providerToken.split('.').length === 3
+    if (!isValidJwt) {
+        ctx.addIssue({
+            code: 'custom',
+            message: 'Invalid JWT'
+        })
+    }
+})
+
+/**
  * @route /me
  * @method PUT
  */

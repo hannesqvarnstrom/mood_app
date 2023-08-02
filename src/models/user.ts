@@ -76,8 +76,8 @@ export default class UserModel {
         if (alreadyExists) {
             throw new AppError('An Account with this email already exists', 400)
         }
-        const q = dbManager.db.insert(users).values({ email, password }).returning().prepare('createUser')
-        const [newUser, ..._2] = await q.execute()
+        const [newUser, ..._2] = await dbManager.db.insert(users).values({ email, password }).returning()
+
         if (newUser) {
             return UserModel.factory(newUser)
         } else {

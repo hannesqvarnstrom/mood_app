@@ -10,7 +10,7 @@ import { and, eq } from 'drizzle-orm'
 import oauthService from '../../services/oauth'
 import sinon from 'ts-sinon'
 
-async function setupTestEnvironment(): Promise<Express> {
+export async function setupTestEnvironment(): Promise<Express> {
     const server = await makeServer()
     const testEnvVars = {
         'DB_CONNECTION': envVars.get('DB_TEST_CONNECTION'),
@@ -263,13 +263,18 @@ describe('Authentication', () => {
     })
 
     describe('/ratings', () => {
-        let user: unknown
+        /**
+         * WIP
+         */
+        // let user: unknown
         beforeAll(async () => {
             await dbManager.truncateTables()
-            user = await register(server).then(res => res.body)
-            const loginResult = await login(server)
-            console.log('loginResult:', loginResult)
-            console.log('user:', user)
+            // user = 
+            await register(server).then(res => res.body)
+            // const loginResult = 
+            await login(server)
+            // console.log('loginResult:', loginResult)
+            // console.log('user:', user)
         })
 
         afterAll(async () => {

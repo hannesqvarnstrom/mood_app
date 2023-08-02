@@ -1,7 +1,7 @@
 import MoodRatingModel, { TMoodRating, TMoodRatingCreateArgs } from "../models/mood-rating";
 import UserModel, { TUser } from "../models/user";
 
-type AverageMoodRatingForDay = {
+export type AverageMoodRatingForDay = {
     date: string,
     rating: number | null
 }
@@ -34,6 +34,7 @@ class MoodRatingService {
     }
 
     /**
+     * Formatted for direct consumption in frontend.
      * 
      * @param user The user whose ratings to get
      * @param timeArgs The time range to get ratings for
@@ -41,14 +42,13 @@ class MoodRatingService {
      */
     public async getAverageRatingPerDay(user: TUser, timeArgs: { from: Date, to: Date }): Promise<AverageMoodRatingForDay[]> {
         const ratings = await this.getByUserBetween(user, timeArgs)
-        const dateRange = Math.abs(timeArgs.to.getTime() - timeArgs.from.getTime()) / (1000 * 60 * 60 * 24)
-
-        const avgRatings = MoodRatingStatistics.fillEmptyDays(MoodRatingStatistics.averageRatingPerDay(ratings), dateRange)
-        avgRatings.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        const avgRatings = MoodRatingStatistics.insertMissingDays(MoodRatingStatistics.getAverageRatingPerDay(ratings))
         return avgRatings
     }
 
     /**
+     * Unsuitable for direct consumption in frontend.
+     * Decent for consumption of 3rd party services.
      * 
      * @param user The user whose ratings to get
      * @param timeArgs The time range to get ratings for
@@ -56,10 +56,8 @@ class MoodRatingService {
      */
     public async getByUserBetween(user: TUser, timeArgs: { from: Date, to: Date }): Promise<TMoodRating[]> {
         const ratings = await this.model.getByUserIdBetween(user.id, timeArgs)
-        const dateRange = Math.abs(timeArgs.to.getTime() - timeArgs.from.getTime()) / (1000 * 60 * 60 * 24)
-        const filledRatings = MoodRatingStatistics.fillEmptyDays(ratings, dateRange, user.id)
-        filledRatings.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-        return filledRatings
+        // ratings.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+        return ratings
     }
 }
 
@@ -72,7 +70,7 @@ export class MoodRatingStatistics {
      * @param ratings The ratings to average
      * @returns The average ratings per day
      */
-    static averageRatingPerDay(ratings: TMoodRating[]): AverageMoodRatingForDay[] {
+    static getAverageRatingPerDay(ratings: TMoodRating[]): AverageMoodRatingForDay[] {
         const ratingsByDay: { [key: string]: number[] } = {}
         ratings.forEach(r => {
             const date = r.timestamp.toDateString()
@@ -99,60 +97,46 @@ export class MoodRatingStatistics {
         return (rating as AverageMoodRatingForDay).rating !== undefined
     }
 
-    /**
-     * When querying statistics from the DB, there may be days with no ratings. This function fills those days with "empty" ratings.
-     * 
-     * @param ratings Known, existing ratings, to fill empty days in. 
-     * @param dateRange The total number of days to fill.
-     * @param userId The user ID to fill ratings for.
-     */
-    static fillEmptyDays(ratings: TMoodRating[], dateRange: number, userId: number): TMoodRating[]
 
-    /**
-     * When querying statistics from the DB, there may be days with no ratings. This function fills those days with "empty" ratings.
-     * 
-     * @param ratings  Known, existing ratings, to fill empty days in.
-     * @param dateRange  The total number of days to fill.
-     */
-    static fillEmptyDays(ratings: AverageMoodRatingForDay[], dateRange: number,): AverageMoodRatingForDay[]
+    static insertMissingDays = (timestamps: (AverageMoodRatingForDay)[]) => {
+        const newTimestamps: AverageMoodRatingForDay[] = [];
+        if (!(timestamps.filter(x => x)).length) {
+            return timestamps
+        }
 
-    /**
-     * When querying statistics from the DB, there may be days with no ratings. This function fills those days with "empty" ratings.
-     * 
-     * @param ratings Known, existing ratings, to fill empty days in. (The type of ratings[] being either TMoodRating or AverageMoodRatingForDay)
-     * @param dateRange  The total number of days to fill.
-     * @param userId  The user ID to fill ratings for. (Only needed if ratings is TMoodRating[])
-     * @returns 
-     */
-    static fillEmptyDays(ratings: (AverageMoodRatingForDay | TMoodRating)[], dateRange: number, userId?: number): (AverageMoodRatingForDay | TMoodRating)[] {
-        for (let i = 0; i < dateRange; i++) {
-            const date = new Date()
-            date.setDate(date.getDate() - i)
-            const rating = ratings.find(r => {
-                const key = this.ratingIsAverage(r) ? r.date : r.timestamp.toDateString()
-                key === date.toDateString()
-            })
+        for (let i = 0; i < timestamps.length; i++) {
+            newTimestamps.push(timestamps[i]!);
+            if (i > 0) {
+                const prevDay = timestamps[i - 1]!;
+                const currDay = timestamps[i]!;
+                const prevDate = new Date(prevDay.date);
 
-            if (!rating) {
+                // subtract one to account for the current day
+                const daysDiff = this.diffBetweenDates(new Date(currDay.date), new Date(prevDay.date)) - 1
+                if (daysDiff >= 1) {
+                    const indexForBeginIndex = newTimestamps.indexOf(prevDay)
+                    // for every day missing
+                    for (let j = 1; j <= daysDiff; j++) {
+                        const missingDay = new Date(prevDay.date);
+                        missingDay.setDate(prevDate.getDate() + j);
 
-                const isAverage = this.ratingIsAverage(ratings[0])
+                        newTimestamps.splice(
+                            indexForBeginIndex + j,
+                            0, { date: missingDay.toDateString(), rating: null })
+                    }
 
-                ratings.push(
-                    isAverage ?
-                        {
-                            date: date.toDateString(),
-                            rating: null,
-                        } : {
-                            id: -1,
-                            timestamp: date,
-                            userId: userId ?? -1,
-                            value: null
-                        })
+                }
+
             }
         }
 
-        return ratings
+        return newTimestamps;
     }
+
+    static diffBetweenDates = (date1: Date, date2: Date) => {
+        return Math.abs(date1.getTime() - date2.getTime()) / (1000 * 60 * 60 * 24)
+    }
+
 }
 
 const moodRatingService = new MoodRatingService()

@@ -1,12 +1,17 @@
 import { Router } from "express"
 import usersRouter from "./users"
 import moodRatingRouter from "./mood-rating"
+import envVars from "../utils/environment"
 
 const router = Router()
 
 router.use((_req, res, next) => {
     res.set('content-type', 'application/json')
-    console.log('Getting request at url', _req.url)
+    if (envVars.isDev()) {
+        res.set('Access-Control-Allow-Origin', 'http://localhost:3000')
+        console.log('Getting request at url', _req.url)
+    }
+
     next()
 })
 

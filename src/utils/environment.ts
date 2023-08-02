@@ -38,6 +38,10 @@ class Environment {
 
         return v as B extends true ? EnvValue : EnvValue | undefined
     }
+
+    public isDev() {
+        return this.get('NODE_ENV') === 'development'
+    }
 }
 const envVars = new Environment()
 

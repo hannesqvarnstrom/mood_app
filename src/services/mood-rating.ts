@@ -15,11 +15,23 @@ class MoodRatingService {
     }
 
     /**
+     * @param user The id of the user whose ratings to get
+     * @returns 
+     */
+    public async getByUser(userId: number): Promise<TMoodRating[]>
+    /**
      * @param user The user whose ratings to get
      * @returns 
      */
-    public async getByUser(user: TUser): Promise<TMoodRating[]> {
-        const ratings = await this.model.getByUserId(user.id)
+    public async getByUser(user: TUser): Promise<TMoodRating[]>
+    public async getByUser(user: TUser | number): Promise<TMoodRating[]> {
+        let userId: number
+        if (typeof user === 'number') {
+            userId = user
+        } else {
+            userId = user.id
+        }
+        const ratings = await this.model.getByUserId(userId)
         return ratings
     }
 
@@ -27,7 +39,7 @@ class MoodRatingService {
      * @param args The payload to create a new rating
      * @returns the newly created rating
      */
-    public async createRating(args: TMoodRatingCreateArgs): Promise<TMoodRating> {
+    public async createRating(args: TMoodRatingCreateArgs & { value: number }): Promise<TMoodRating> {
         const newRating = await this.model.create(args)
         await this.userModel.updateById(args.userId, { lastLogAt: newRating.timestamp })
         return newRating
@@ -138,6 +150,7 @@ export class MoodRatingStatistics {
     }
 
 }
+export type JSONTMoodRating = Omit<TMoodRating, 'timestamp'> & { timestamp: string }
 
 const moodRatingService = new MoodRatingService()
 export default moodRatingService

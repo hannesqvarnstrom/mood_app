@@ -3,14 +3,14 @@ import authService, { OAuthProvider } from "../services/authentication"
 import { JWTExpiresIn, requireJwt, signJwt } from "../middleware/jwt"
 import { loginSchema, oauthGooglePostSchema, registerSchema, updateMeSchema } from "./schemas"
 import userService from "../services/user"
-import { validateRequest } from '../utils/schema'
 import { TUser } from '../models/user'
 import { AppError } from '../utils/errors'
 import oauthService from '../services/oauth'
+import { validateRequest } from 'zod-express-middleware'
 
 const usersRouter = Router()
 
-usersRouter.post('/register', validateRequest(registerSchema), async (req, res, next) => {
+usersRouter.post('/register', validateRequest({ body: registerSchema }), async (req, res, next) => {
     try {
         const user = await userService.createUser(req.body)
         return res.status(201).send(user)
@@ -30,7 +30,7 @@ const signAndSendUserToken = (user: TUser, res: Response) => {
     })
 }
 
-usersRouter.post('/login', validateRequest(loginSchema), async (req, res, next) => {
+usersRouter.post('/login', validateRequest({ body: loginSchema }), async (req, res, next) => {
     try {
         const user = await authService.attemptPasswordLogin(req.body)
         return signAndSendUserToken(user, res)
@@ -43,12 +43,12 @@ usersRouter.get('/me', requireJwt, async (req, res, next) => {
     try {
         const userId = req.jwtPayload?.userId as number
         const me = await userService.getById(userId)
-        console.log('me:', me)
+
         return res.send({ me })
     } catch (e) { return next(e) }
 })
 
-usersRouter.put('/me', requireJwt, validateRequest(updateMeSchema), async (req, res, next) => {
+usersRouter.put('/me', requireJwt, validateRequest({ body: updateMeSchema }), async (req, res, next) => {
     const userId = req.jwtPayload?.userId as number
     try {
         const updatedMe = await userService.updateById(userId, req.body)
@@ -70,7 +70,7 @@ usersRouter.put('/me', requireJwt, validateRequest(updateMeSchema), async (req, 
 /**
  * Google
  */
-usersRouter.post('/auth/google', validateRequest(oauthGooglePostSchema), async (req, res, next) => {
+usersRouter.post('/auth/google', validateRequest({ body: oauthGooglePostSchema }), async (req, res, next) => {
     const {
         providerToken,
     } = req.body

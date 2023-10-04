@@ -2,15 +2,12 @@ import { Router } from 'express'
 import { requireJwt } from '../middleware/jwt'
 import userService from '../services/user'
 import moodRatingService from '../services/mood-rating'
-import { validateRequest } from '../utils/schema'
-import { postRatingSchema } from './schemas'
-import { z } from 'zod'
+import { getRatingsQuerySchema, postRatingSchema } from './schemas'
+import { validateRequest } from 'zod-express-middleware'
+
 const moodRatingRouter = Router()
 
-/**
- * @todo fix prefix BS
- */
-moodRatingRouter.use('/ratings', requireJwt, async (req, _res, next) => {
+moodRatingRouter.use('/', requireJwt, async (req, _res, next) => {
     const userId = req.jwtPayload?.userId
     if (!userId) {
         return next(401) // jwt malformed
@@ -22,17 +19,9 @@ moodRatingRouter.use('/ratings', requireJwt, async (req, _res, next) => {
     next()
 })
 
-const getRatingsQuerySchema = z.object({
-    from: z.string(),
-    to: z.string(),
-})
-
-/**
- * @todo limit access?
- */
-moodRatingRouter.get('/ratings', async (req, res, next) => {
+moodRatingRouter.get('/', validateRequest({ query: getRatingsQuerySchema }), async (req, res, next) => {
+    const { from, to } = req.query
     try {
-        const { from, to } = getRatingsQuerySchema.parse(req.query)
         const ratings = await moodRatingService.getByUserBetween(req.user!, { from: new Date(from), to: new Date(to) })
         return res.send(ratings)
     } catch (error) {
@@ -40,9 +29,9 @@ moodRatingRouter.get('/ratings', async (req, res, next) => {
     }
 })
 
-moodRatingRouter.get('/ratings/average', async (req, res, next) => {
+moodRatingRouter.get('/average', validateRequest({ query: getRatingsQuerySchema }), async (req, res, next) => {
+    const { from, to } = req.query
     try {
-        const { from, to } = await getRatingsQuerySchema.parseAsync(req.query)
         const ratings = await moodRatingService.getAverageRatingPerDay(req.user!, { from: new Date(from), to: new Date(to) })
         return res.send(ratings)
     } catch (error) {
@@ -50,10 +39,15 @@ moodRatingRouter.get('/ratings/average', async (req, res, next) => {
     }
 })
 
-moodRatingRouter.post('/ratings', validateRequest(postRatingSchema), async (req, res) => {
+moodRatingRouter.post('/', validateRequest({ body: postRatingSchema }), async (req, res, next) => {
     const { value } = req.body
-    const newRating = await moodRatingService.createRating({ value, userId: req.user!.id, timestamp: new Date() })
-    return res.status(201).send(newRating)
+
+    try {
+        const newRating = await moodRatingService.createRating({ value, userId: req.user!.id, timestamp: new Date() })
+        return res.status(201).send(newRating)
+    } catch (error) {
+        return next(error)
+    }
 })
 
 export default moodRatingRouter

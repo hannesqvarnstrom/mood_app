@@ -24,12 +24,21 @@ router.get('/', (_req, res) => {
  * - POST /register, 
  * - POST /login, 
  * - GET /me,
- * - PUT /me
+ * - PUT /me,
  * 
  * - GET /auth/google
  * - GET /auth/google/redirect
  */
 router.use(usersRouter)
-router.use(moodRatingRouter)
+
+
+/**
+ * Mood Ratings
+ * (All endpoints are JWT protected)
+ * - GET /ratings,
+ * - GET /ratings/average,
+ * - POST /ratings,
+ */
+router.use('/ratings', moodRatingRouter)
 
 export default router

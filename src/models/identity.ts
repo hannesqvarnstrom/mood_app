@@ -19,14 +19,27 @@ export default class IdentityModel {
      * Attempts to find by provided providerId combined with a provider ('GOOGLE' or 'FACEBOOK')
      */
     public async findByProviderId(providerId: string, provider: OAuthProvider): Promise<TIdentity | undefined> {
-        const q = dbManager.db.select().from(federatedIdentities).where(and(eq(federatedIdentities.providerId, providerId), eq(federatedIdentities.provider, provider))).prepare('findIdentityByProvider')
+        const q = dbManager.db.select()
+            .from(federatedIdentities)
+            .where(
+                and(
+                    eq(federatedIdentities.providerId, providerId),
+                    eq(federatedIdentities.provider, provider)
+                )
+            )
+            .prepare('findIdentityByProvider' + new Date().getTime())
+
         const [result, ..._] = await q.execute()
 
         return result ? IdentityModel.factory(result) : undefined
     }
 
     public async create(payload: TCreateIdentityPayload): Promise<TIdentity> {
-        const q = dbManager.db.insert(federatedIdentities).values(payload).returning().prepare('insertIdentity')
+        const q = dbManager.db.insert(federatedIdentities)
+            .values(payload)
+            .returning()
+            .prepare('insertIdentity' + new Date().getTime())
+
         const [result, ..._] = await q.execute()
 
         if (!result) {

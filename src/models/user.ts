@@ -49,7 +49,13 @@ export default class UserModel {
     }
 
     public async updateById(id: number, payload: { password?: string, lastLogAt?: Date } = {}) {
-        const q = dbManager.db.update(users).set(payload).where(eq(users.id, id)).returning().prepare('updateById')
+        const q = dbManager.db.update(users)
+            .set(payload)
+            .where(
+                eq(users.id, id)
+            )
+            .returning()
+            .prepare('updateById' + new Date().getTime())
 
         const [updatedUser, ..._] = await q.execute()
         if (updatedUser) {
@@ -60,7 +66,13 @@ export default class UserModel {
     }
 
     public async getByEmail(email: string): Promise<RawUser | undefined> {
-        const q = dbManager.db.select().from(users).where(eq(users.email, email)).prepare('getByEmail')
+        const q = dbManager.db.select()
+            .from(users)
+            .where(
+                eq(users.email, email)
+            )
+            .prepare('getByEmail' + new Date().getTime())
+
         const [user, ..._] = await q.execute()
 
         return user
@@ -71,11 +83,18 @@ export default class UserModel {
          * @todo
          * - add unique constraint to email
          */
-        const existingUserQ = dbManager.db.select().from(users).where(eq(users.email, email)).prepare('existingUserQ')
+        const existingUserQ = dbManager.db.select()
+            .from(users)
+            .where(
+                eq(users.email, email)
+            )
+            .prepare('existingUserQ' + new Date().getTime())
+
         const [alreadyExists, ..._1] = await existingUserQ.execute()
         if (alreadyExists) {
             throw new AppError('An Account with this email already exists', 400)
         }
+
         const [newUser, ..._2] = await dbManager.db.insert(users).values({ email, password }).returning()
 
         if (newUser) {

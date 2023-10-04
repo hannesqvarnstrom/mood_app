@@ -18,7 +18,13 @@ export default class MoodRatingModel {
     }
 
     public async create(args: TMoodRatingCreateArgs): Promise<TMoodRating> {
-        const query = dbManager.db.insert(moodRatings).values(args).returning().prepare('create')
+        const query = dbManager.db.insert(moodRatings)
+            .values(args)
+            .returning()
+            .prepare(
+                'createRating' + new Date().getTime()
+            )
+
         const [result, ..._] = await query.execute()
         if (!result) {
             throw new AppError('Something went wrong while rating', 400)
@@ -28,7 +34,11 @@ export default class MoodRatingModel {
     }
 
     public async getByUserId(userId: number): Promise<TMoodRating[]> {
-        const query = dbManager.db.select().from(moodRatings).where(eq(moodRatings.userId, userId)).prepare('getByUserId')
+        const query = dbManager.db.select()
+            .from(moodRatings)
+            .where(eq(moodRatings.userId, userId))
+            .prepare('getByUserId' + new Date().getTime())
+
         const result = await query.execute()
         return result
     }
@@ -37,11 +47,17 @@ export default class MoodRatingModel {
         from: Date,
         to: Date
     }): Promise<TMoodRating[]> {
-        console.log('userId:', userId)
-        const query = dbManager.db.select().from(moodRatings)
-            .where(and(eq(moodRatings.userId, userId), between(moodRatings.timestamp, args.from, args.to)))
-            .orderBy(sql`moodRatings.timestamp asc`)
-            .prepare('getByUserBetween')
+        const query = dbManager.db.select()
+            .from(moodRatings)
+            .where(
+                and(
+                    eq(moodRatings.userId, userId),
+                    between(moodRatings.timestamp, args.from, args.to)
+                )
+            )
+            .orderBy(sql`mood_ratings.timestamp asc`)
+            .prepare('getByUserBetween' + new Date().getTime())
+
         const result = await query.execute()
         return result
     }

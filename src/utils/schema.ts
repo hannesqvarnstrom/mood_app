@@ -1,7 +1,13 @@
 import { NextFunction, Request, Response } from "express"
 import { z } from "zod"
-export const validateRequest = <Z extends { parseAsync: (data: unknown, params?: Partial<z.ParseParams> | undefined) => any }>(schema: Z) => {
-    return async (req: Request, res: Response, next: NextFunction) => {
+export const validateRequest = <
+    Z extends {
+        parseAsync: (
+            data: unknown,
+            params?: Partial<z.ParseParams> | undefined
+        ) => any
+    }>(schema: Z) => {
+    return async (req: Request, _res: Response, next: NextFunction) => {
         try {
             /**
              * @todo
@@ -15,7 +21,7 @@ export const validateRequest = <Z extends { parseAsync: (data: unknown, params?:
             // })
             return next()
         } catch (error) {
-            return res.status(400).send(error)
+            return next(error)
         }
     }
 }

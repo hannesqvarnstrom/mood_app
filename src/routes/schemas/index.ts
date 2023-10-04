@@ -88,5 +88,5 @@ export const updateMeSchema = z.object({
 })
 
 export const postRatingSchema = z.object({
-    value: z.number().min(0).max(MAX_RATING_VALUE),
-})
+    value: z.number().min(1).max(MAX_RATING_VALUE),
+}).strict()
